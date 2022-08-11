@@ -1,3 +1,5 @@
+use kclvm_parser::load_program;
+use kclvm_runner::{execute, ExecProgramArgs};
 use protobuf::Message;
 
 use crate::model::gpyrpc::*;
@@ -5,6 +7,7 @@ use crate::service::service::KclvmService;
 use kclvm::utils::*;
 use std::ffi::CString;
 use std::os::raw::c_char;
+use std::path::Path;
 
 #[allow(non_camel_case_types)]
 type kclvm_service = KclvmService;
@@ -101,6 +104,43 @@ pub extern "C" fn kclvm_service_call(
             let serv_ref = mut_ptr_as_ref(serv);
             serv_ref.kclvm_service_err_buffer = err_message.clone();
             serv_ref.kclvm_service_err_buffer.push('\0');
+            let c_string =
+                std::ffi::CString::new(err_message.as_str()).expect("CString::new failed");
+            let ptr = c_string.into_raw();
+            ptr as *const i8
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn kclvm_service_single_exec(
+    work_dir: *const c_char,
+    file_name: *const c_char,
+) -> *const c_char {
+    let result = std::panic::catch_unwind(|| {
+        let work_dir = c2str(work_dir).to_string();
+        let file_name = c2str(file_name).to_string();
+        let mut args = ExecProgramArgs::default();
+        args.work_dir = Some(work_dir.to_string());
+        args.k_filename_list = vec![file_name.clone()];
+        let k_path = Path::new(&work_dir).join(&file_name);
+        let opts = args.get_load_program_options();
+        let program = load_program(&vec![k_path.to_str().unwrap()], Some(opts)).unwrap();
+        let output = execute(program, 0, &args).unwrap();
+        CString::new(output.as_bytes()).unwrap().into_raw()
+    });
+    match result {
+        Ok(result) => result,
+        Err(panic_err) => {
+            let err_message = if let Some(s) = panic_err.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_err.downcast_ref::<&String>() {
+                (*s).clone()
+            } else if let Some(s) = panic_err.downcast_ref::<String>() {
+                (*s).clone()
+            } else {
+                "".to_string()
+            };
             let c_string =
                 std::ffi::CString::new(err_message.as_str()).expect("CString::new failed");
             let ptr = c_string.into_raw();

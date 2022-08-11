@@ -21,6 +21,8 @@ const char* kclvm_service_get_error_buffer(kclvm_service* c);
 
 void kclvm_service_clear_error_buffer(kclvm_service* c);
 
+const char* kclvm_service_single_exec(const char* work_dir,const char* file_name);
+
 
 #ifdef __cplusplus
 } // extern "C"
