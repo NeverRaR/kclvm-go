@@ -28,10 +28,11 @@ import (
 
 const CgoEnabled = true
 
+var Default_IsPyPliugin = true
+
 //export kclvm_go_capi_InvokeJsonProxy
 func kclvm_go_capi_InvokeJsonProxy(_method, _args_json, _kwargs_json *C.char) (result_json *C.char) {
 	var method, args_json, kwargs_json string
-
 	if _method != nil {
 		method = C.GoString(_method)
 	}
@@ -101,8 +102,10 @@ func _Invoke(method, args_json, kwargs_json string) (result_json string) {
 	// get method
 	methodSpec, found := GetMethodSpec(method)
 	if !found {
-		// try python plugin
-		return py_callPluginMethod(method, args_json, kwargs_json)
+		if Default_IsPyPliugin {
+			// try python plugin
+			return py_callPluginMethod(method, args_json, kwargs_json)
+		}
 	}
 
 	// call plugin method
