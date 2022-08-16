@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    container: 
+      image: kusionstack/kclvm-builder
     steps:
       - name: Git checkout
         uses: actions/checkout@v2
@@ -16,7 +18,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.17
-
+      
+      - run: echo "KCLVM_PYTHON3_HOME=/usr/local/python3.9/bin/python3.9" >> $GITHUB_ENV
 
       - run: go run ./cmds/kcl-go
 
