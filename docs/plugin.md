@@ -131,5 +131,12 @@ Go 开发的插件在 macOS 和 Linux 平台也可以编译成 Go plugin 格式�
 
 Python 支持是一个可选的外部依赖。因此 CGO 将通过 dlopen 的方式加在对应的 Python 动态库，然后接入插件的能力。
 
-目前 Python 插件的支持还在开发中。
+如果需要开启Python插件支持，需要设置环境变量KCLVM_PYTHON3_HOME指明Python3的安装位置，并且要求${KCLVM_PYTHON_HOME}/lib路径下包含Python动态库
 
+Python插件默认开启，如需要关闭，请在代码中设置全局变量Default_IsPyPliugin为false或将环境变量KCLVM_PYTHON_HOME设为空
+```go
+import "kusionstack.io/kclvm-go/pkg/kcl_plugin"
+func main(){
+	kcl_plugin.Default_IsPyPliugin=false
+}
+```
