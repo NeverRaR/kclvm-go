@@ -138,6 +138,18 @@ void Kclvm_Py_DecRef(void * f,PyObject * obj){
 	dec_ref(obj);
 }
 
+PyObject * Kclvm_PyList_New(void * f,Py_ssize_t size){
+	PyObject * (*new_list)(Py_ssize_t);
+	new_list = (PyObject * (*)(Py_ssize_t))f;
+	return new_list(size);
+}
+
+int Kclvm_PyList_SetItem(void * f,PyObject * obj, Py_ssize_t index, PyObject * item){
+	int (*set_item)(PyObject *, Py_ssize_t, PyObject *);
+	set_item = (int (*)(PyObject *, Py_ssize_t, PyObject *))f;
+	return set_item(obj,index,item);
+}
+
 int Kclvm_PyList_Append(void * f,PyObject * obj, PyObject * item) {
 	int (*append)(PyObject *, PyObject *);
 	append = (int (*)(PyObject *, PyObject *))f;
@@ -187,17 +199,7 @@ import "C"
 import (
 	"fmt"
 	"unsafe"
-
-	"kusionstack.io/kclvm-go/pkg/3rdparty/dlopen"
 )
-
-var pyLib *dlopen.LibHandle
-
-var pyPluginDebug = true
-
-//var pythonHome = "/usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9"
-
-var pythonHome string
 
 var pythonHomePtr *C.wchar_t
 
@@ -411,6 +413,25 @@ func PyDecRef(obj *C.PyObject) {
 	f := "Py_DecRef"
 	funcPtr, _ := pyLib.GetSymbolPointer(f)
 	C.Kclvm_Py_DecRef(funcPtr, obj)
+}
+
+// see in https://docs.python.org/3/c-api/list.html#c.PyList_New
+func PyListNew(len int) *C.PyObject {
+	f := "PyList_New"
+
+	funcPtr, _ := pyLib.GetSymbolPointer(f)
+
+	return C.Kclvm_PyList_New(funcPtr, C.Py_ssize_t(len))
+}
+
+// see in https://docs.python.org/3/c-api/list.html#c.PyList_SetItem
+func PyListSetItem(obj *C.PyObject, index int, item *C.PyObject) int {
+
+	f := "PyList_SetItem"
+
+	funcPtr, _ := pyLib.GetSymbolPointer(f)
+
+	return int(C.Kclvm_PyList_SetItem(funcPtr, obj, C.Py_ssize_t(index), item))
 }
 
 // see in https://docs.python.org/3/c-api/list.html#c.PyList_Append

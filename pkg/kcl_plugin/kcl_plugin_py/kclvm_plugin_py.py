@@ -2,11 +2,21 @@ import typing
 import json
 import inspect
 import sys
+import os
 
+import kclvm.config
+import kclvm.compiler.vfs as vfs
 import kclvm.kcl.info as kcl_info
 import kclvm.compiler.extension.plugin.plugin as kcl_plugin
 
 _plugin_dict = {}
+
+KCLVM_TARGET_ENV_KEY = "KCLVM_TARGET"
+
+saved_input_file = None
+saved_current_path = ""
+saved_is_target_native  = True
+saved_is_target_wasm  = False
 
 def _call_py_method(name: str, args_json: str, kwargs_json: str) -> str:
         try:
@@ -55,6 +65,29 @@ def _get_plugin(plugin_name: str) -> typing.Optional[any]:
     module = kcl_plugin.get_plugin(plugin_name)
     _plugin_dict[plugin_name] = module
     return module
+
+def _get_target(path_list: typing.List[str]) -> str:
+    root = vfs.MustGetPkgRoot(path_list)
+    modfile = vfs.LoadModFile(root)
+    return (modfile.build.target or os.getenv(KCLVM_TARGET_ENV_KEY) or "").lower()
+
+def _set_kclvm_config(path_list,work_dir: str,target: str):
+    kclvm.config.input_file = path_list
+    kclvm.config.current_path = work_dir
+    kclvm.config.is_target_native = target == "native"
+    kclvm.config.is_target_wasm = target == "wasm"
+
+def _save_kclvm_config():
+    saved_input_file = kclvm.config.input_file 
+    saved_current_path = kclvm.config.current_path
+    saved_is_target_native  = kclvm.config.is_target_native
+    saved_is_target_wasm  = kclvm.config.is_target_wasm
+
+def _recover_kclvm_config():
+    kclvm.config.input_file=saved_input_file
+    kclvm.config.current_path=saved_current_path
+    kclvm.config.is_target_native=saved_is_target_native
+    kclvm.config.is_target_wasm=saved_is_target_wasm
 
 def hello(name :str) -> str:
     return "hello plugin : " +name

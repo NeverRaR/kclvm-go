@@ -17,6 +17,7 @@ import (
 func TestPyPlugin(t *testing.T) {
 	_, srcPath, _, _ := runtime.Caller(0)
 	CppSetEnv("KCL_PLUGINS_ROOT", srcPath[:strings.LastIndex(srcPath, "/")]+"/kcl_plugin_py", true)
+	ctxThreadLocal.Set(NewPyPluginContext())
 	py_callPluginMethod("hello.say_hello", "[\"kclvm-go\"]", "")
 	result := py_callPluginMethod("hello.add", "[1,2]", "")
 	assert.Equal(t, "3", result)
@@ -37,9 +38,10 @@ func TestPyPluginInMultiGoRoutine(t *testing.T) {
 	_, srcPath, _, _ := runtime.Caller(0)
 	CppSetEnv("KCL_PLUGINS_ROOT", srcPath[:strings.LastIndex(srcPath, "/")]+"/kcl_plugin_py", true)
 	wg := sync.WaitGroup{}
-	wg.Add(100)
+	wg.Add(1000)
 	for i := 0; i < 1000; i++ {
 		go func() {
+			ctxThreadLocal.Set(NewPyPluginContext())
 			result := py_callPluginMethod("hello.add", "[1,2]", "")
 			assert.Equal(t, "3", result)
 			wg.Done()

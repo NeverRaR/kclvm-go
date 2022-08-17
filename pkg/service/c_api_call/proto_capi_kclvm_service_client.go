@@ -126,6 +126,10 @@ func (c *PROTOCAPI_KclvmServiceClient) ExecProgram(in *gpyrpc.ExecProgram_Args) 
 
 	out = new(gpyrpc.ExecProgram_Result)
 
+	if kcl_plugin.Default_IsPyPliugin {
+		kcl_plugin.SetPyPluginContext(in.KFilenameList, in.WorkDir)
+	}
+
 	err = c.cApiCall("KclvmService.ExecProgram", in, out)
 
 	return

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"kusionstack.io/kclvm-go/pkg/3rdparty/dlopen"
 	"kusionstack.io/kclvm-go/pkg/kclvm_runtime"
@@ -31,9 +32,19 @@ const KCLVM_PY_PLUGIN_MODULE_NAME = "__kclvm_plugin_py_in_go__"
 //go:embed kcl_plugin_py/kclvm_plugin_py.py
 var kclvmPyPluginModuleSrc string
 
+var pythonHome string
+
+var initOnce sync.Once
+
+var pyLib *dlopen.LibHandle
+
 var kclvmPyPluginModule *C.PyObject
 
-func InitKclvmPyPlugin() {
+func InitKclvmPyPluginOnce() {
+	initOnce.Do(initKclvmPyPlugin)
+}
+
+func initKclvmPyPlugin() {
 	pyLib = loadKclvmPyLib()
 	PySetPythonHome(pythonHome)
 	PyInitialize()
@@ -187,4 +198,43 @@ func PyObjToString(obj *C.PyObject) (string, error) {
 	defer PyDecRef(s)
 
 	return PyUnicodeAsUTF8(s), nil
+}
+
+func SetPyPluginContext(pathList []string, workDir string) {
+	ctxMutex.Lock()
+	defer ctxMutex.Unlock()
+	InitKclvmPyPluginOnce()
+	ctx := NewPyPluginContext()
+	ctx.PathList = pathList
+	ctx.WorkDir = workDir
+	pyPathList := PyListNew(len(ctx.PathList))
+	for i, v := range ctx.PathList {
+		pyV := PyUnicodeFromString(v)
+		PyListSetItem(pyPathList, i, pyV)
+	}
+	ctx.Target = PyUnicodeAsUTF8(CallPyFunc(kclvmPyPluginModule, "_get_target", map[string]*C.PyObject{
+		"path_list": pyPathList,
+	}))
+	ctxThreadLocal.Set(ctx)
+}
+
+func SaveKclvmPyConfig() {
+	CallPyFunc(kclvmPyPluginModule, "_save_kclvm_config", map[string]*C.PyObject{})
+}
+
+func SetKclvmPyConfig(pathList []string, workDir string, target string) {
+	pyPathList := PyListNew(len(pathList))
+	for i, v := range pathList {
+		pyV := PyUnicodeFromString(v)
+		PyListSetItem(pyPathList, i, pyV)
+	}
+	CallPyFunc(kclvmPyPluginModule, "_set_kclvm_config", map[string]*C.PyObject{
+		"path_list": pyPathList,
+		"work_dir":  PyUnicodeFromString(workDir),
+		"target":    PyUnicodeFromString(target),
+	})
+}
+
+func RecoverKclvmPyConfig() {
+	CallPyFunc(kclvmPyPluginModule, "_recover_kclvm_config", map[string]*C.PyObject{})
 }

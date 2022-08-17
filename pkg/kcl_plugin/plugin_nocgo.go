@@ -10,3 +10,7 @@ const CgoEnabled = false
 func Invoke(method string, args []interface{}, kwargs map[string]interface{}) (result_json string) {
 	panic("unsupport")
 }
+
+func SetPyPluginContext(pathList []string, workDir string) {
+	panic("unsupport")
+}
