@@ -1,6 +1,3 @@
-//go:build cgo && kclvm_service_capi
-// +build cgo,kclvm_service_capi
-
 package capicall
 
 /*
@@ -11,19 +8,29 @@ import "C"
 import (
 	"errors"
 	"runtime"
+	"strings"
+	"sync"
 	"unsafe"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"kusionstack.io/kclvm-go/pkg/3rdparty/dlopen"
 	"kusionstack.io/kclvm-go/pkg/kcl_plugin"
 	"kusionstack.io/kclvm-go/pkg/spec/gpyrpc"
 )
+
+var libInit sync.Once
+
+var lib *dlopen.LibHandle
 
 type PROTOCAPI_KclvmServiceClient struct {
 	client *C.kclvm_service
 }
 
 func PROTOCAPI_NewKclvmServiceClient() *PROTOCAPI_KclvmServiceClient {
+	libInit.Do(func() {
+		lib = loadKclvmServiceCapiLib()
+	})
 	c := new(PROTOCAPI_KclvmServiceClient)
 	c.client = NewKclvmService(C.longlong(kcl_plugin.GetInvokeJsonProxyPtr()))
 	runtime.SetFinalizer(c, func(x *PROTOCAPI_KclvmServiceClient) {
@@ -59,16 +66,13 @@ func (c *PROTOCAPI_KclvmServiceClient) cApiCall(callName string, in proto.Messag
 
 	defer KclvmServiceFreeString(cOut)
 
-	cErr := GetKclvmServiceError(c.client)
+	goOut := C.GoString(cOut)
 
-	defer ClearKclvmServiceError(c.client)
-
-	goErr := C.GoString(cErr)
-
-	if len(goErr) > 0 {
-		return errors.New(goErr)
+	if strings.HasPrefix(goOut, "KCLVM_CAPI_CALL_ERROR") {
+		return errors.New(goOut)
 	}
-	return proto.Unmarshal([]byte(C.GoString(cOut)), out)
+
+	return proto.Unmarshal([]byte(goOut), out)
 }
 
 func (c *PROTOCAPI_KclvmServiceClient) Ping(in *gpyrpc.Ping_Args) (out *gpyrpc.Ping_Result, err error) {

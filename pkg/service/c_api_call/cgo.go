@@ -1,5 +1,5 @@
-//go:build cgo && kclvm_service_capi
-// +build cgo,kclvm_service_capi
+//go:build cgo
+// +build cgo
 
 package capicall
 
@@ -27,24 +27,8 @@ const char* kclvm_service_call(void *f,kclvm_service* c,const char * method,cons
 	service_call = (const char* (*)(kclvm_service*,const char *,const char *))f;
 	return service_call(c,method,args);
 }
-const char* kclvm_service_get_error_buffer(void *f,kclvm_service* c){
-	const char* (*get_error_buffer)(kclvm_service*);
-	get_error_buffer = (const char* (*)(kclvm_service*))f;
-	return get_error_buffer(c);
-}
-void kclvm_service_clear_error_buffer(void *f,kclvm_service* c){
-	void (*clear_error_buffer)(kclvm_service*);
-	clear_error_buffer = (void (*)(kclvm_service*))f;
-	return clear_error_buffer(c);
-}
 */
 import "C"
-
-import (
-	"kusionstack.io/kclvm-go/pkg/3rdparty/dlopen"
-)
-
-var lib *dlopen.LibHandle = loadKclvmServiceCapiLib()
 
 func NewKclvmService(pluginAgent C.longlong) *C.kclvm_service {
 	f := "kclvm_service_new"
@@ -76,20 +60,4 @@ func KclvmServiceCall(serv *C.kclvm_service, method *C.char, args *C.char) *C.ch
 	serviceCall, _ := lib.GetSymbolPointer(f)
 
 	return C.kclvm_service_call(serviceCall, serv, method, args)
-}
-
-func GetKclvmServiceError(serv *C.kclvm_service) *C.char {
-	f := "kclvm_service_get_error_buffer"
-
-	getError, _ := lib.GetSymbolPointer(f)
-
-	return C.kclvm_service_get_error_buffer(getError, serv)
-}
-
-func ClearKclvmServiceError(serv *C.kclvm_service) {
-	f := "kclvm_service_clear_error_buffer"
-
-	clearError, _ := lib.GetSymbolPointer(f)
-
-	C.kclvm_service_get_error_buffer(clearError, serv)
 }
