@@ -11,6 +11,9 @@ package kcl_plugin
 #include <stdio.h>
 #include <stdarg.h>
 
+typedef
+    enum {PyGILState_LOCKED, PyGILState_UNLOCKED}
+        Kclvm_PyGILState_STATE;
 typedef ssize_t Py_ssize_t;
 typedef struct PyCompilerFlags PyCompilerFlags;
 typedef struct PyObject PyObject;
@@ -51,9 +54,21 @@ void Kclvm_Py_Initialize(void * f){
 }
 
 void Kclvm_Py_InitializeEx(void * f,int i) {
-	void (*py_init)(int);
-	py_init = (void (*)(int))f;
-	py_init(i);
+   void (*py_init)(int);
+   py_init = (void (*)(int))f;
+   py_init(i);
+}
+
+Kclvm_PyGILState_STATE Kclvm_PyGILState_Ensure(void * f){
+   Kclvm_PyGILState_STATE (*state_ensure)(void);
+   state_ensure =  (Kclvm_PyGILState_STATE (*)(void))f;
+   return state_ensure();
+}
+
+void Kclvm_PyGILState_Release(void * f,Kclvm_PyGILState_STATE state){
+   void (*release_state)(Kclvm_PyGILState_STATE);
+   release_state =  (void (*)(Kclvm_PyGILState_STATE))f;
+   release_state(state);
 }
 
 PyObject * Kclvm_PyImport_ImportModule(void * f,const char *name){
@@ -306,6 +321,22 @@ func PyInitializeEx(i bool) {
 	} else {
 		C.Kclvm_Py_InitializeEx(funcPtr, C.int(0))
 	}
+}
+
+func PyGILStateEnsure() C.Kclvm_PyGILState_STATE {
+	f := "PyGILState_Ensure"
+
+	funcPtr, _ := pyLib.GetSymbolPointer(f)
+
+	return C.Kclvm_PyGILState_Ensure(funcPtr)
+}
+
+func PyGILStateRelease(state C.Kclvm_PyGILState_STATE) {
+	f := "PyGILState_Release"
+
+	funcPtr, _ := pyLib.GetSymbolPointer(f)
+
+	C.Kclvm_PyGILState_Release(funcPtr, state)
 }
 
 // see in https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule

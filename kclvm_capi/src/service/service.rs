@@ -60,6 +60,7 @@ impl KclvmService {
         let kcl_paths_str = kcl_paths.iter().map(|s| s.as_str()).collect::<Vec<&str>>();
 
         let program = load_program(&kcl_paths_str.as_slice(), Some(opts))?;
+        
         let start_time = SystemTime::now();
         let json_result = kclvm_runner::execute(program, self.plugin_agent, &native_args)?;
         let kcl_val = ValueRef::from_json(&json_result).unwrap();

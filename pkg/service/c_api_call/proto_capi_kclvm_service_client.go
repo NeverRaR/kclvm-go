@@ -12,6 +12,7 @@ import (
 	"sync"
 	"unsafe"
 
+	_ "github.com/benesch/cgosymbolizer"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"kusionstack.io/kclvm-go/pkg/3rdparty/dlopen"

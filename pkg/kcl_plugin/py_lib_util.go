@@ -201,21 +201,21 @@ func PyObjToString(obj *C.PyObject) (string, error) {
 }
 
 func SetPyPluginContext(pathList []string, workDir string) {
-	ctxMutex.Lock()
-	defer ctxMutex.Unlock()
-	InitKclvmPyPluginOnce()
-	ctx := NewPyPluginContext()
-	ctx.PathList = pathList
-	ctx.WorkDir = workDir
-	pyPathList := PyListNew(len(ctx.PathList))
-	for i, v := range ctx.PathList {
-		pyV := PyUnicodeFromString(v)
-		PyListSetItem(pyPathList, i, pyV)
-	}
-	ctx.Target = PyUnicodeAsUTF8(CallPyFunc(kclvmPyPluginModule, "_get_target", map[string]*C.PyObject{
-		"path_list": pyPathList,
-	}))
-	ctxThreadLocal.Set(ctx)
+	PyGILEntry(func() {
+		InitKclvmPyPluginOnce()
+		ctx := NewPyPluginContext()
+		ctx.PathList = pathList
+		ctx.WorkDir = workDir
+		pyPathList := PyListNew(len(ctx.PathList))
+		for i, v := range ctx.PathList {
+			pyV := PyUnicodeFromString(v)
+			PyListSetItem(pyPathList, i, pyV)
+		}
+		ctx.Target = PyUnicodeAsUTF8(CallPyFunc(kclvmPyPluginModule, "_get_target", map[string]*C.PyObject{
+			"path_list": pyPathList,
+		}))
+		ctxThreadLocal.Set(ctx)
+	})
 }
 
 func SaveKclvmPyConfig() {
@@ -237,4 +237,16 @@ func SetKclvmPyConfig(pathList []string, workDir string, target string) {
 
 func RecoverKclvmPyConfig() {
 	CallPyFunc(kclvmPyPluginModule, "_recover_kclvm_config", map[string]*C.PyObject{})
+}
+
+var GILMutex sync.Mutex
+
+// Python calls in golang are not thread safe,If you need to call Python concurrently,you must call it from this entry point.
+// This function first obtains the Gil of Python to ensure the thread safety of Python
+func PyGILEntry(pyCall func()) {
+	GILMutex.Lock()
+	defer GILMutex.Unlock()
+	state := PyGILStateEnsure()
+	pyCall()
+	PyGILStateRelease(state)
 }
